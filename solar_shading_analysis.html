@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Shading Analysis - Skyline Sector Method</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: #050810;
+            color: #e8eaed;
+            overflow-x: hidden;
+        }
+
+        .starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 60px 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 50%, #ff4500 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5)); }
+            to { filter: drop-shadow(0 0 30px rgba(255, 140, 0, 0.8)); }
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #ff8c00;
+            margin-bottom: 80px;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 3px;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(10, 20, 40, 0.9) 0%, rgba(20, 30, 60, 0.8) 100%);
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            border-radius: 30px;
+            padding: 50px;
+            margin-bottom: 60px;
+            box-shadow: 0 20px 80px rgba(255, 140, 0, 0.2), inset 0 0 60px rgba(255, 215, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .section-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            color: #ffd700;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .visualization-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-bottom: 50px;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 10px 40px rgba(255, 140, 0, 0.3);
+        }
+
+        .formula-box {
+            background: linear-gradient(135deg, rgba(255, 69, 0, 0.2) 0%, rgba(255, 140, 0, 0.2) 100%);
+            border: 3px solid #ff8c00;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(255, 140, 0, 0.4), inset 0 0 40px rgba(255, 215, 0, 0.1);
+        }
+
+        .formula {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            color: #ffd700;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .formula-label {
+            font-size: 1.2rem;
+            color: #ff8c00;
+            margin-top: 15px;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+
+        button {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #ff8c00 0%, #ff4500 100%);
+            border: none;
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 30px rgba(255, 140, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 40px rgba(255, 140, 0, 0.7);
+        }
+
+        button span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 215, 0, 0.05);
+            padding: 15px 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .legend-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .explanation-text {
+            font-size: 1.2rem;
+            line-height: 2;
+            color: #c9d1d9;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .highlight {
+            color: #ffd700;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 40px;
+        }
+
+        .full-width-canvas {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) {
+            .visualization-container {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.15) 0%, rgba(255, 69, 0, 0.15) 100%);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(255, 140, 0, 0.5);
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: #ff8c00;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <canvas class="starfield" id="starfield"></canvas>
+
+    <div class="container">
+        <h1>☀️ SOLAR SHADING ANALYSIS</h1>
+        <p class="subtitle">Skyline Sector Method for PV Yield Prediction</p>
+
+        <!-- Section 1: Core Concept -->
+        <div class="section">
+            <div class="section-content">
+                <h2>🎯 핵심 원리: 그림자 지도 (Shadow Skyline)</h2>
+                
+                <p class="explanation-text">
+                    태양광 발전량의 핵심은 <span class="highlight">"어느 방향에서 해가 뜰 때 빛이 가려지는가"</span>를 아는 것입니다.
+                </p>
+
+                <div class="visualization-container">
+                    <canvas id="canvas1" width="700" height="700"></canvas>
+                    <canvas id="canvas2" width="700" height="700"></canvas>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="stat-card">
+                        <div class="stat-value">360°</div>
+                        <div class="stat-label">전방위 분석</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sectorCount">36</div>
+                        <div class="stat-label">분석 구역</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sectorAngle">10°</div>
+                        <div class="stat-label">구역당 각도</div>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffd700;"></div>
+                        <span>분석 대상 건물</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>주변 차폐 건물</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(255, 140, 0, 0.3);"></div>
+                        <span>분석 구역 (Sector)</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button onclick="addBuilding()"><span>🏢 건물 추가</span></button>
+                    <button onclick="changeSectors()"><span>📐 구역 변경</span></button>
+                    <button onclick="animateSun()"><span>☀️ 태양 경로</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Mathematical Formula -->
+        <div class="section">
+            <div class="section-content">
+                <h2>📐 기하학적 원리</h2>
+
+                <div class="formula-box">
+                    <div class="formula-label">차폐각 (Shading Angle) 계산식</div>
+                    <div class="formula">
+                        θ = arctan(ΔH / d)
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 40px; text-align: center;">
+                        <div>
+                            <div style="font-size: 2rem; color: #ffd700;">θ</div>
+                            <div style="color: #ff8c00; margin-top: 10px;">차폐각</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2rem; color: #ffd700;">ΔH</div>
+                            <div style="color: #ff8c00; margin-top: 10px;">높이 차</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2rem; color: #ffd700;">d</div>
+                            <div style="color: #ff8c00; margin-top: 10px;">수평 거리</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-layout">
+                    <div class="full-width-canvas">
+                        <canvas id="canvas3" width="1200" height="600"></canvas>
+                    </div>
+                </div>
+
+                <p class="explanation-text" style="margin-top: 40px;">
+                    주변 건물의 <span class="highlight">높이 차(ΔH)</span>와 <span class="highlight">거리(d)</span>를 이용하여<br>
+                    각 방향별 차폐각을 계산합니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- Section 3: Skyline Profile -->
+        <div class="section">
+            <div class="section-content">
+                <h2>🗻 스카이라인 프로파일 (Skyline Profile)</h2>
+
+                <div class="grid-layout">
+                    <div class="full-width-canvas">
+                        <canvas id="canvas4" width="1400" height="600"></canvas>
+                    </div>
+                </div>
+
+                <p class="explanation-text">
+                    360도 방향별 최대 차폐각을 연결하면 <span class="highlight">"그림자 지도"</span>가 완성됩니다.<br>
+                    이를 통해 태양의 궤적과 겹치는 구간의 일사량을 정밀하게 제외할 수 있습니다.
+                </p>
+
+                <div class="controls">
+                    <button onclick="rotateSkyline()"><span>🔄 회전하기</span></button>
+                    <button onclick="toggleSunPath()"><span>☀️ 태양 궤적 토글</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Solar Path Integration -->
+        <div class="section">
+            <div class="section-content">
+                <h2>☀️ 태양 궤적 통합 분석</h2>
+
+                <div class="grid-layout">
+                    <div class="full-width-canvas">
+                        <canvas id="canvas5" width="1400" height="700"></canvas>
+                    </div>
+                </div>
+
+                <p class="explanation-text">
+                    <span class="highlight">태양의 연간 궤적</span>과 <span class="highlight">스카이라인 프로파일</span>을 중첩하여<br>
+                    실제로 일사량을 받을 수 있는 시간대를 정밀 계산합니다.
+                </p>
+
+                <div class="stats-panel">
+                    <div class="stat-card">
+                        <div class="stat-value" id="shadedHours">--</div>
+                        <div class="stat-label">차폐 시간</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sunlitHours">--</div>
+                        <div class="stat-label">일조 시간</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="efficiency">--</div>
+                        <div class="stat-label">일조 효율</div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button onclick="animateYear()"><span>📅 연간 시뮬레이션</span></button>
+                    <button onclick="showSummer()"><span>🌞 하지 (여름)</span></button>
+                    <button onclick="showWinter()"><span>❄️동지 (겨울)</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Starfield background
+        const starfieldCanvas = document.getElementById('starfield');
+        const starfieldCtx = starfieldCanvas.getContext('2d');
+        starfieldCanvas.width = window.innerWidth;
+        starfieldCanvas.height = window.innerHeight;
+
+        const stars = [];
+        for (let i = 0; i < 200; i++) {
+            stars.push({
+                x: Math.random() * starfieldCanvas.width,
+                y: Math.random() * starfieldCanvas.height,
+                radius: Math.random() * 2,
+                opacity: Math.random()
+            });
+        }
+
+        function drawStarfield() {
+            starfieldCtx.clearRect(0, 0, starfieldCanvas.width, starfieldCanvas.height);
+            stars.forEach(star => {
+                starfieldCtx.beginPath();
+                starfieldCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                starfieldCtx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                starfieldCtx.fill();
+                star.opacity += (Math.random() - 0.5) * 0.02;
+                star.opacity = Math.max(0.1, Math.min(1, star.opacity));
+            });
+            requestAnimationFrame(drawStarfield);
+        }
+        drawStarfield();
+
+        window.addEventListener('resize', () => {
+            starfieldCanvas.width = window.innerWidth;
+            starfieldCanvas.height = window.innerHeight;
+        });
+
+        // Canvas 1: Top view with sectors
+        const ctx1 = document.getElementById('canvas1').getContext('2d');
+        let numSectors = 36;
+        let buildings = [
+            { x: 200, y: 150, height: 40, distance: 80 },
+            { x: 450, y: 200, height: 60, distance: 100 },
+            { x: 300, y: 450, height: 30, distance: 60 }
+        ];
+
+        function drawTopView() {
+            ctx1.clearRect(0, 0, 700, 700);
+            
+            const centerX = 350;
+            const centerY = 350;
+            const radius = 250;
+
+            // Draw sectors
+            ctx1.save();
+            for (let i = 0; i < numSectors; i++) {
+                const angle1 = (i * 360 / numSectors) * Math.PI / 180;
+                const angle2 = ((i + 1) * 360 / numSectors) * Math.PI / 180;
+                
+                ctx1.beginPath();
+                ctx1.moveTo(centerX, centerY);
+                ctx1.arc(centerX, centerY, radius, angle1, angle2);
+                ctx1.closePath();
+                
+                ctx1.fillStyle = i % 2 === 0 ? 'rgba(255, 140, 0, 0.1)' : 'rgba(255, 140, 0, 0.05)';
+                ctx1.fill();
+                ctx1.strokeStyle = 'rgba(255, 140, 0, 0.3)';
+                ctx1.lineWidth = 1;
+                ctx1.stroke();
+            }
+            ctx1.restore();
+
+            // Draw buildings
+            buildings.forEach((building, index) => {
+                ctx1.fillStyle = '#ff6b6b';
+                ctx1.fillRect(building.x - 25, building.y - 25, 50, 50);
+                ctx1.strokeStyle = '#ff4444';
+                ctx1.lineWidth = 3;
+                ctx1.strokeRect(building.x - 25, building.y - 25, 50, 50);
+                
+                // Distance line
+                ctx1.beginPath();
+                ctx1.moveTo(centerX, centerY);
+                ctx1.lineTo(building.x, building.y);
+                ctx1.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+                ctx1.lineWidth = 2;
+                ctx1.setLineDash([5, 5]);
+                ctx1.stroke();
+                ctx1.setLineDash([]);
+                
+                // Distance label
+                const midX = (centerX + building.x) / 2;
+                const midY = (centerY + building.y) / 2;
+                ctx1.fillStyle = '#ffd700';
+                ctx1.font = 'bold 16px Orbitron';
+                ctx1.fillText(`${building.distance}m`, midX + 10, midY - 10);
+            });
+
+            // Draw target building (center)
+            ctx1.fillStyle = '#ffd700';
+            ctx1.beginPath();
+            ctx1.arc(centerX, centerY, 30, 0, Math.PI * 2);
+            ctx1.fill();
+            ctx1.strokeStyle = '#ff8c00';
+            ctx1.lineWidth = 4;
+            ctx1.stroke();
+
+            // Label
+            ctx1.fillStyle = '#ffffff';
+            ctx1.font = 'bold 18px Orbitron';
+            ctx1.textAlign = 'center';
+            ctx1.fillText('분석 대상', centerX, centerY + 5);
+
+            // Direction labels
+            ctx1.fillStyle = '#ffd700';
+            ctx1.font = 'bold 20px Orbitron';
+            ctx1.fillText('N', centerX, 40);
+            ctx1.fillText('E', 660, centerY + 7);
+            ctx1.fillText('S', centerX, 680);
+            ctx1.fillText('W', 40, centerY + 7);
+        }
+
+        // Canvas 2: 3D perspective view
+        const ctx2 = document.getElementById('canvas2').getContext('2d');
+
+        function draw3DView() {
+            ctx2.clearRect(0, 0, 700, 700);
+            
+            const baseY = 550;
+            const scale = 3;
+
+            // Draw grid
+            ctx2.strokeStyle = 'rgba(255, 140, 0, 0.2)';
+            ctx2.lineWidth = 1;
+            for (let i = 0; i < 10; i++) {
+                ctx2.beginPath();
+                ctx2.moveTo(50 + i * 60, baseY);
+                ctx2.lineTo(50 + i * 60, baseY - 400);
+                ctx2.stroke();
+            }
+
+            // Draw buildings in 3D
+            buildings.forEach((building, index) => {
+                const x = 150 + index * 180;
+                const height = building.height * scale;
+                
+                // Building front face
+                ctx2.fillStyle = '#ff6b6b';
+                ctx2.fillRect(x, baseY - height, 100, height);
+                
+                // Building top
+                ctx2.fillStyle = '#ff4444';
+                ctx2.beginPath();
+                ctx2.moveTo(x, baseY - height);
+                ctx2.lineTo(x + 20, baseY - height - 20);
+                ctx2.lineTo(x + 120, baseY - height - 20);
+                ctx2.lineTo(x + 100, baseY - height);
+                ctx2.closePath();
+                ctx2.fill();
+                
+                // Building side
+                ctx2.fillStyle = '#cc3333';
+                ctx2.beginPath();
+                ctx2.moveTo(x + 100, baseY - height);
+                ctx2.lineTo(x + 120, baseY - height - 20);
+                ctx2.lineTo(x + 120, baseY - 20);
+                ctx2.lineTo(x + 100, baseY);
+                ctx2.closePath();
+                ctx2.fill();
+                
+                // Height label
+                ctx2.fillStyle = '#ffd700';
+                ctx2.font = 'bold 16px Orbitron';
+                ctx2.fillText(`ΔH = ${building.height}m`, x, baseY - height - 30);
+                
+                // Distance label
+                ctx2.fillStyle = '#ff8c00';
+                ctx2.fillText(`d = ${building.distance}m`, x, baseY + 30);
+                
+                // Shading angle line
+                ctx2.strokeStyle = '#ffd700';
+                ctx2.lineWidth = 3;
+                ctx2.beginPath();
+                ctx2.moveTo(350, baseY);
+                ctx2.lineTo(x + 50, baseY - height);
+                ctx2.stroke();
+                
+                // Angle arc
+                const angle = Math.atan(building.height / building.distance);
+                ctx2.strokeStyle = '#00ff88';
+                ctx2.lineWidth = 2;
+                ctx2.beginPath();
+                ctx2.arc(350, baseY, 80, -Math.PI/2, -Math.PI/2 + angle, false);
+                ctx2.stroke();
+                
+                // Angle label
+                const angleDeg = Math.round(angle * 180 / Math.PI);
+                ctx2.fillStyle = '#00ff88';
+                ctx2.font = 'bold 18px Orbitron';
+                ctx2.fillText(`θ = ${angleDeg}°`, 350 + 100, baseY - 40);
+            });
+
+            // Draw target building
+            ctx2.fillStyle = '#ffd700';
+            ctx2.fillRect(320, baseY - 90, 60, 90);
+            ctx2.fillStyle = '#ff8c00';
+            ctx2.beginPath();
+            ctx2.moveTo(320, baseY - 90);
+            ctx2.lineTo(335, baseY - 105);
+            ctx2.lineTo(395, baseY - 105);
+            ctx2.lineTo(380, baseY - 90);
+            ctx2.closePath();
+            ctx2.fill();
+
+            // Ground line
+            ctx2.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx2.lineWidth = 3;
+            ctx2.beginPath();
+            ctx2.moveTo(0, baseY);
+            ctx2.lineTo(700, baseY);
+            ctx2.stroke();
+        }
+
+        // Canvas 3: Side view with geometry
+        const ctx3 = document.getElementById('canvas3').getContext('2d');
+
+        function drawGeometry() {
+            ctx3.clearRect(0, 0, 1200, 600);
+            
+            const baseY = 500;
+            const targetX = 200;
+            const buildingX = 800;
+            const targetHeight = 80;
+            const buildingHeight = 200;
+            const distance = buildingX - targetX;
+            const deltaH = buildingHeight - targetHeight;
+
+            // Ground
+            ctx3.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx3.lineWidth = 3;
+            ctx3.beginPath();
+            ctx3.moveTo(0, baseY);
+            ctx3.lineTo(1200, baseY);
+            ctx3.stroke();
+
+            // Target building
+            ctx3.fillStyle = '#ffd700';
+            ctx3.fillRect(targetX - 50, baseY - targetHeight, 100, targetHeight);
+            ctx3.strokeStyle = '#ff8c00';
+            ctx3.lineWidth = 3;
+            ctx3.strokeRect(targetX - 50, baseY - targetHeight, 100, targetHeight);
+
+            // Obstacle building
+            ctx3.fillStyle = '#ff6b6b';
+            ctx3.fillRect(buildingX - 60, baseY - buildingHeight, 120, buildingHeight);
+            ctx3.strokeStyle = '#ff4444';
+            ctx3.lineWidth = 3;
+            ctx3.strokeRect(buildingX - 60, baseY - buildingHeight, 120, buildingHeight);
+
+            // Distance line (d)
+            ctx3.strokeStyle = '#4dabf7';
+            ctx3.lineWidth = 4;
+            ctx3.setLineDash([10, 5]);
+            ctx3.beginPath();
+            ctx3.moveTo(targetX, baseY);
+            ctx3.lineTo(buildingX, baseY);
+            ctx3.stroke();
+            ctx3.setLineDash([]);
+
+            // Distance arrows
+            ctx3.fillStyle = '#4dabf7';
+            ctx3.beginPath();
+            ctx3.moveTo(targetX + 10, baseY);
+            ctx3.lineTo(targetX + 30, baseY - 10);
+            ctx3.lineTo(targetX + 30, baseY + 10);
+            ctx3.closePath();
+            ctx3.fill();
+            ctx3.beginPath();
+            ctx3.moveTo(buildingX - 10, baseY);
+            ctx3.lineTo(buildingX - 30, baseY - 10);
+            ctx3.lineTo(buildingX - 30, baseY + 10);
+            ctx3.closePath();
+            ctx3.fill();
+
+            // Distance label
+            ctx3.fillStyle = '#4dabf7';
+            ctx3.font = 'bold 32px Orbitron';
+            ctx3.textAlign = 'center';
+            ctx3.fillText(`d = ${Math.round(distance * 0.3)}m`, (targetX + buildingX) / 2, baseY + 50);
+
+            // Height difference (ΔH)
+            ctx3.strokeStyle = '#ff6b6b';
+            ctx3.lineWidth = 4;
+            ctx3.setLineDash([10, 5]);
+            ctx3.beginPath();
+            ctx3.moveTo(buildingX + 150, baseY - targetHeight);
+            ctx3.lineTo(buildingX + 150, baseY - buildingHeight);
+            ctx3.stroke();
+            ctx3.setLineDash([]);
+
+            // Height arrows
+            ctx3.fillStyle = '#ff6b6b';
+            ctx3.beginPath();
+            ctx3.moveTo(buildingX + 150, baseY - targetHeight - 10);
+            ctx3.lineTo(buildingX + 140, baseY - targetHeight - 30);
+            ctx3.lineTo(buildingX + 160, baseY - targetHeight - 30);
+            ctx3.closePath();
+            ctx3.fill();
+            ctx3.beginPath();
+            ctx3.moveTo(buildingX + 150, baseY - buildingHeight + 10);
+            ctx3.lineTo(buildingX + 140, baseY - buildingHeight + 30);
+            ctx3.lineTo(buildingX + 160, baseY - buildingHeight + 30);
+            ctx3.closePath();
+            ctx3.fill();
+
+            // ΔH label
+            ctx3.fillStyle = '#ff6b6b';
+            ctx3.font = 'bold 32px Orbitron';
+            ctx3.textAlign = 'left';
+            ctx3.fillText(`ΔH = ${Math.round(deltaH * 0.3)}m`, buildingX + 180, baseY - (targetHeight + buildingHeight) / 2 + 10);
+
+            // Shading angle line
+            ctx3.strokeStyle = '#ffd700';
+            ctx3.lineWidth = 5;
+            ctx3.beginPath();
+            ctx3.moveTo(targetX, baseY - targetHeight);
+            ctx3.lineTo(buildingX, baseY - buildingHeight);
+            ctx3.stroke();
+
+            // Angle arc
+            const angle = Math.atan(deltaH / distance);
+            ctx3.strokeStyle = '#00ff88';
+            ctx3.lineWidth = 4;
+            ctx3.beginPath();
+            ctx3.arc(targetX, baseY - targetHeight, 150, 0, -angle, true);
+            ctx3.stroke();
+
+            // Angle label
+            const angleDeg = Math.round(angle * 180 / Math.PI);
+            ctx3.fillStyle = '#00ff88';
+            ctx3.font = 'bold 36px Orbitron';
+            ctx3.fillText(`θ = ${angleDeg}°`, targetX + 50, baseY - targetHeight - 120);
+
+            // Formula display
+            ctx3.fillStyle = '#ffd700';
+            ctx3.font = 'bold 28px Orbitron';
+            ctx3.textAlign = 'center';
+            ctx3.fillText(`θ = arctan(${Math.round(deltaH * 0.3)} / ${Math.round(distance * 0.3)}) = ${angleDeg}°`, 600, 80);
+        }
+
+        // Canvas 4: Skyline profile (polar)
+        const ctx4 = document.getElementById('canvas4').getContext('2d');
+        let skylineRotation = 0;
+
+        function drawSkyline() {
+            ctx4.clearRect(0, 0, 1400, 600);
+            
+            const centerX = 700;
+            const centerY = 300;
+            const maxRadius = 250;
+
+            // Draw concentric circles (elevation angles)
+            for (let i = 1; i <= 5; i++) {
+                ctx4.strokeStyle = 'rgba(255, 140, 0, 0.2)';
+                ctx4.lineWidth = 1;
+                ctx4.beginPath();
+                ctx4.arc(centerX, centerY, maxRadius * i / 5, 0, Math.PI * 2);
+                ctx4.stroke();
+                
+                ctx4.fillStyle = 'rgba(255, 140, 0, 0.5)';
+                ctx4.font = '14px Orbitron';
+                ctx4.fillText(`${i * 18}°`, centerX + maxRadius * i / 5 + 10, centerY);
+            }
+
+            // Draw azimuth lines
+            for (let i = 0; i < 36; i++) {
+                const angle = (i * 10 + skylineRotation) * Math.PI / 180;
+                ctx4.strokeStyle = 'rgba(255, 140, 0, 0.15)';
+                ctx4.lineWidth = 1;
+                ctx4.beginPath();
+                ctx4.moveTo(centerX, centerY);
+                ctx4.lineTo(centerX + Math.cos(angle) * maxRadius, centerY + Math.sin(angle) * maxRadius);
+                ctx4.stroke();
+            }
+
+            // Generate skyline data (elevation angles for each azimuth)
+            const skylineData = [];
+            for (let i = 0; i < 36; i++) {
+                const azimuth = i * 10;
+                // Simulate varying skyline heights
+                let maxAngle = 0;
+                
+                buildings.forEach(building => {
+                    const buildingAzimuth = Math.atan2(building.y - 350, building.x - 350) * 180 / Math.PI;
+                    const azimuthDiff = Math.abs((buildingAzimuth - azimuth + 180) % 360 - 180);
+                    
+                    if (azimuthDiff < 20) {
+                        const angle = Math.atan(building.height / building.distance) * 180 / Math.PI;
+                        maxAngle = Math.max(maxAngle, angle * (1 - azimuthDiff / 20));
+                    }
+                });
+                
+                skylineData.push(maxAngle);
+            }
+
+            // Draw skyline profile
+            ctx4.beginPath();
+            skylineData.forEach((elevation, i) => {
+                const azimuth = (i * 10 + skylineRotation) * Math.PI / 180;
+                const radius = (elevation / 90) * maxRadius;
+                const x = centerX + Math.cos(azimuth) * radius;
+                const y = centerY + Math.sin(azimuth) * radius;
+                
+                if (i === 0) {
+                    ctx4.moveTo(x, y);
+                } else {
+                    ctx4.lineTo(x, y);
+                }
+            });
+            ctx4.closePath();
+            ctx4.fillStyle = 'rgba(255, 69, 0, 0.3)';
+            ctx4.fill();
+            ctx4.strokeStyle = '#ff4500';
+            ctx4.lineWidth = 4;
+            ctx4.stroke();
+
+            // Draw cardinal directions
+            const directions = [
+                { angle: -90, label: 'N', x: centerX, y: centerY - maxRadius - 40 },
+                { angle: 0, label: 'E', x: centerX + maxRadius + 40, y: centerY + 10 },
+                { angle: 90, label: 'S', x: centerX, y: centerY + maxRadius + 40 },
+                { angle: 180, label: 'W', x: centerX - maxRadius - 40, y: centerY + 10 }
+            ];
+
+            directions.forEach(dir => {
+                ctx4.fillStyle = '#ffd700';
+                ctx4.font = 'bold 28px Orbitron';
+                ctx4.textAlign = 'center';
+                ctx4.fillText(dir.label, dir.x, dir.y);
+            });
+
+            // Center point
+            ctx4.fillStyle = '#ffd700';
+            ctx4.beginPath();
+            ctx4.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctx4.fill();
+        }
+
+        // Canvas 5: Solar path with skyline
+        const ctx5 = document.getElementById('canvas5').getContext('2d');
+        let showSunPath = true;
+        let currentSeason = 'summer';
+
+        function drawSolarAnalysis() {
+            ctx5.clearRect(0, 0, 1400, 700);
+            
+            const centerX = 700;
+            const centerY = 350;
+            const maxRadius = 280;
+
+            // Draw elevation circles
+            for (let i = 1; i <= 6; i++) {
+                ctx5.strokeStyle = 'rgba(255, 140, 0, 0.15)';
+                ctx5.lineWidth = 1;
+                ctx5.beginPath();
+                ctx5.arc(centerX, centerY, maxRadius * i / 6, 0, Math.PI * 2);
+                ctx5.stroke();
+                
+                ctx5.fillStyle = 'rgba(255, 140, 0, 0.4)';
+                ctx5.font = '16px Orbitron';
+                ctx5.fillText(`${i * 15}°`, centerX + maxRadius * i / 6 + 10, centerY + 5);
+            }
+
+            // Draw azimuth lines
+            for (let i = 0; i < 36; i++) {
+                const angle = i * 10 * Math.PI / 180;
+                ctx5.strokeStyle = 'rgba(255, 140, 0, 0.1)';
+                ctx5.lineWidth = 1;
+                ctx5.beginPath();
+                ctx5.moveTo(centerX, centerY);
+                ctx5.lineTo(centerX + Math.cos(angle) * maxRadius, centerY + Math.sin(angle) * maxRadius);
+                ctx5.stroke();
+            }
+
+            // Draw skyline profile
+            const skylineData = [];
+            for (let i = 0; i < 36; i++) {
+                const azimuth = i * 10;
+                let maxAngle = 0;
+                
+                buildings.forEach(building => {
+                    const buildingAzimuth = Math.atan2(building.y - 350, building.x - 350) * 180 / Math.PI;
+                    const azimuthDiff = Math.abs((buildingAzimuth - azimuth + 180) % 360 - 180);
+                    
+                    if (azimuthDiff < 20) {
+                        const angle = Math.atan(building.height / building.distance) * 180 / Math.PI;
+                        maxAngle = Math.max(maxAngle, angle * (1 - azimuthDiff / 20));
+                    }
+                });
+                
+                skylineData.push(maxAngle);
+            }
+
+            ctx5.beginPath();
+            skylineData.forEach((elevation, i) => {
+                const azimuth = i * 10 * Math.PI / 180;
+                const radius = (elevation / 90) * maxRadius;
+                const x = centerX + Math.cos(azimuth) * radius;
+                const y = centerY + Math.sin(azimuth) * radius;
+                
+                if (i === 0) {
+                    ctx5.moveTo(x, y);
+                } else {
+                    ctx5.lineTo(x, y);
+                }
+            });
+            ctx5.closePath();
+            ctx5.fillStyle = 'rgba(255, 69, 0, 0.25)';
+            ctx5.fill();
+            ctx5.strokeStyle = '#ff4500';
+            ctx5.lineWidth = 3;
+            ctx5.stroke();
+
+            // Draw sun paths
+            if (showSunPath) {
+                // Summer solstice (highest path)
+                drawSunPath(centerX, centerY, maxRadius, 90 - 23.5, 'rgba(255, 215, 0, 0.8)', 4, currentSeason === 'summer');
+                
+                // Equinox (middle path)
+                drawSunPath(centerX, centerY, maxRadius, 90, 'rgba(255, 180, 0, 0.6)', 3, currentSeason === 'equinox');
+                
+                // Winter solstice (lowest path)
+                drawSunPath(centerX, centerY, maxRadius, 90 + 23.5, 'rgba(255, 140, 0, 0.6)', 3, currentSeason === 'winter');
+            }
+
+            // Calculate statistics
+            let totalHours = 0;
+            let sunlitHours = 0;
+            
+            for (let hour = 0; hour < 24; hour++) {
+                for (let day = 0; day < 365; day += 30) {
+                    const sunPos = calculateSunPosition(day, hour);
+                    if (sunPos.elevation > 0) {
+                        totalHours++;
+                        const skylineAngle = skylineData[Math.floor(sunPos.azimuth / 10)] || 0;
+                        if (sunPos.elevation > skylineAngle) {
+                            sunlitHours++;
+                        }
+                    }
+                }
+            }
+
+            const shadedHours = totalHours - sunlitHours;
+            const efficiency = ((sunlitHours / totalHours) * 100).toFixed(1);
+
+            document.getElementById('shadedHours').textContent = `${shadedHours}h`;
+            document.getElementById('sunlitHours').textContent = `${sunlitHours}h`;
+            document.getElementById('efficiency').textContent = `${efficiency}%`;
+
+            // Labels
+            ctx5.fillStyle = '#ffd700';
+            ctx5.font = 'bold 24px Orbitron';
+            ctx5.textAlign = 'center';
+            ctx5.fillText('동', centerX + maxRadius + 60, centerY + 10);
+            ctx5.fillText('서', centerX - maxRadius - 60, centerY + 10);
+            ctx5.fillText('남', centerX, centerY + maxRadius + 50);
+            ctx5.fillText('북', centerX, centerY - maxRadius - 40);
+        }
+
+        function drawSunPath(cx, cy, maxR, sunMaxElev, color, lineWidth, highlight) {
+            ctx5.strokeStyle = highlight ? 'rgba(255, 215, 0, 1)' : color;
+            ctx5.lineWidth = highlight ? 6 : lineWidth;
+            
+            ctx5.beginPath();
+            let started = false;
+            
+            for (let azimuth = 60; azimuth <= 300; azimuth += 2) {
+                const hourAngle = (azimuth - 180) / 15; // Approximate
+                const elevation = sunMaxElev * Math.cos(hourAngle * Math.PI / 12);
+                
+                if (elevation > 0) {
+                    const radius = (elevation / 90) * maxR;
+                    const angle = (azimuth - 90) * Math.PI / 180;
+                    const x = cx + Math.cos(angle) * radius;
+                    const y = cy + Math.sin(angle) * radius;
+                    
+                    if (!started) {
+                        ctx5.moveTo(x, y);
+                        started = true;
+                    } else {
+                        ctx5.lineTo(x, y);
+                    }
+                }
+            }
+            ctx5.stroke();
+            
+            // Draw sun positions at key hours
+            if (highlight) {
+                [90, 135, 180, 225, 270].forEach(azimuth => {
+                    const hourAngle = (azimuth - 180) / 15;
+                    const elevation = sunMaxElev * Math.cos(hourAngle * Math.PI / 12);
+                    
+                    if (elevation > 0) {
+                        const radius = (elevation / 90) * maxR;
+                        const angle = (azimuth - 90) * Math.PI / 180;
+                        const x = cx + Math.cos(angle) * radius;
+                        const y = cy + Math.sin(angle) * radius;
+                        
+                        ctx5.fillStyle = '#ffd700';
+                        ctx5.beginPath();
+                        ctx5.arc(x, y, 8, 0, Math.PI * 2);
+                        ctx5.fill();
+                        
+                        // Glow effect
+                        const gradient = ctx5.createRadialGradient(x, y, 0, x, y, 20);
+                        gradient.addColorStop(0, 'rgba(255, 215, 0, 0.8)');
+                        gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                        ctx5.fillStyle = gradient;
+                        ctx5.beginPath();
+                        ctx5.arc(x, y, 20, 0, Math.PI * 2);
+                        ctx5.fill();
+                    }
+                });
+            }
+        }
+
+        function calculateSunPosition(day, hour) {
+            const declination = 23.5 * Math.sin((360 / 365) * (day - 81) * Math.PI / 180);
+            const latitude = 37.5; // Seoul
+            const hourAngle = (hour - 12) * 15;
+            
+            const elevation = Math.asin(
+                Math.sin(declination * Math.PI / 180) * Math.sin(latitude * Math.PI / 180) +
+                Math.cos(declination * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) * Math.cos(hourAngle * Math.PI / 180)
+            ) * 180 / Math.PI;
+            
+            let azimuth = Math.atan2(
+                Math.sin(hourAngle * Math.PI / 180),
+                Math.cos(hourAngle * Math.PI / 180) * Math.sin(latitude * Math.PI / 180) - 
+                Math.tan(declination * Math.PI / 180) * Math.cos(latitude * Math.PI / 180)
+            ) * 180 / Math.PI;
+            
+            azimuth = (azimuth + 360) % 360;
+            
+            return { azimuth, elevation };
+        }
+
+        // Button functions
+        function addBuilding() {
+            buildings.push({
+                x: 200 + Math.random() * 300,
+                y: 200 + Math.random() * 300,
+                height: 20 + Math.random() * 50,
+                distance: 50 + Math.random() * 100
+            });
+            drawTopView();
+            draw3DView();
+            drawGeometry();
+            drawSkyline();
+            drawSolarAnalysis();
+        }
+
+        function changeSectors() {
+            numSectors = numSectors === 36 ? 72 : 36;
+            document.getElementById('sectorCount').textContent = numSectors;
+            document.getElementById('sectorAngle').textContent = `${360 / numSectors}°`;
+            drawTopView();
+        }
+
+        function animateSun() {
+            let angle = 0;
+            const interval = setInterval(() => {
+                angle += 5;
+                if (angle >= 360) {
+                    clearInterval(interval);
+                }
+                // Animation would show sun moving around
+            }, 50);
+        }
+
+        function rotateSkyline() {
+            const rotateInterval = setInterval(() => {
+                skylineRotation = (skylineRotation + 2) % 360;
+                drawSkyline();
+            }, 30);
+            
+            setTimeout(() => clearInterval(rotateInterval), 3000);
+        }
+
+        function toggleSunPath() {
+            showSunPath = !showSunPath;
+            drawSolarAnalysis();
+        }
+
+        function animateYear() {
+            const seasons = ['winter', 'equinox', 'summer', 'equinox'];
+            let index = 0;
+            
+            const interval = setInterval(() => {
+                currentSeason = seasons[index];
+                drawSolarAnalysis();
+                index++;
+                if (index >= seasons.length) {
+                    clearInterval(interval);
+                    currentSeason = 'summer';
+                }
+            }, 1000);
+        }
+
+        function showSummer() {
+            currentSeason = 'summer';
+            drawSolarAnalysis();
+        }
+
+        function showWinter() {
+            currentSeason = 'winter';
+            drawSolarAnalysis();
+        }
+
+        // Initial draw
+        drawTopView();
+        draw3DView();
+        drawGeometry();
+        drawSkyline();
+        drawSolarAnalysis();
+    </script>
+</body>
+</html>
