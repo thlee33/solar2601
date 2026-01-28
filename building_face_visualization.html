@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Building Face Generation - Interactive Visualization</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 100%);
+            color: #e4e7eb;
+            overflow-x: hidden;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInDown 1s ease;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #8892a6;
+            margin-bottom: 60px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(79, 172, 254, 0.2);
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: #4facfe;
+            border-left: 4px solid #4facfe;
+            padding-left: 20px;
+        }
+
+        .step-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        .visualization {
+            position: relative;
+            background: #151930;
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        .explanation {
+            background: rgba(79, 172, 254, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .explanation h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #00f2fe;
+        }
+
+        .explanation p {
+            line-height: 1.8;
+            color: #b8c5d6;
+            margin-bottom: 15px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            border: 1px solid rgba(79, 172, 254, 0.2);
+        }
+
+        .code-block pre {
+            color: #c9d1d9;
+            line-height: 1.6;
+        }
+
+        .keyword { color: #ff7b72; }
+        .function { color: #d2a8ff; }
+        .string { color: #a5d6ff; }
+        .comment { color: #8b949e; }
+        .number { color: #79c0ff; }
+
+        .formula {
+            background: rgba(0, 242, 254, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            color: #00f2fe;
+            border: 2px dashed rgba(0, 242, 254, 0.3);
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .step-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>3D Building Face Generation</h1>
+        <p class="subtitle">2D Footprint → 3D Polygons (Roof + Walls)</p>
+
+        <!-- Step 1: Input Data -->
+        <div class="section">
+            <h2>Step 1: 입력 데이터 (2D Footprint)</h2>
+            <div class="step-container">
+                <div class="visualization">
+                    <canvas id="canvas1" width="600" height="500"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4facfe;"></div>
+                            <span>건물 풋프린트</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6b6b;"></div>
+                            <span>좌표점</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="explanation">
+                    <h3>2D 폴리곤 입력</h3>
+                    <p>건물의 평면 형태를 나타내는 2D 폴리곤(Polygon)을 입력받습니다.</p>
+                    
+                    <div class="code-block">
+                        <pre><span class="comment"># 입력 데이터</span>
+<span class="keyword">coords_wgs</span> = [<span class="comment"># WGS84 좌표 (위경도)</span>
+    (lon1, lat1), (lon2, lat2), 
+    (lon3, lat3), (lon4, lat4)
+]
+
+<span class="keyword">coords_m</span> = [<span class="comment"># 미터 투영 좌표</span>
+    (x1, y1), (x2, y2), 
+    (x3, y3), (x4, y4)
+]
+
+<span class="keyword">base_z</span> = <span class="number">0.0</span>   <span class="comment"># 지면 높이</span>
+<span class="keyword">roof_z</span> = <span class="number">15.0</span>  <span class="comment"># 옥상 높이</span></pre>
+                    </div>
+                    
+                    <p><strong>주요 개념:</strong></p>
+                    <ul style="line-height: 2; color: #b8c5d6; margin-left: 20px;">
+                        <li>WGS84: 최종 출력용 (위경도 좌표)</li>
+                        <li>미터 좌표: 거리/각도 계산용</li>
+                        <li>높이 정보: base_z (지면), roof_z (옥상)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Roof Generation -->
+        <div class="section">
+            <h2>Step 2: 옥상(Roof) 면 생성</h2>
+            <div class="step-container">
+                <div class="visualization">
+                    <canvas id="canvas2" width="600" height="500"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #51cf66;"></div>
+                            <span>옥상 면</span>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <button onclick="rotateView2()">회전</button>
+                    </div>
+                </div>
+                <div class="explanation">
+                    <h3>2D → 3D 변환</h3>
+                    <p>2D 폴리곤의 모든 점을 옥상 높이(roof_z)로 상승시킵니다.</p>
+                    
+                    <div class="formula">
+                        (x, y) → (x, y, roof_z)
+                    </div>
+                    
+                    <div class="code-block">
+                        <pre><span class="comment"># 옥상 면 생성</span>
+<span class="keyword">roof_polygon</span> = <span class="function">Polygon</span>([
+    (x, y, <span class="keyword">roof_z</span>)  <span class="comment"># Z 좌표 추가</span>
+    <span class="keyword">for</span> x, y, *z <span class="keyword">in</span> coords_wgs
+])
+
+<span class="keyword">face_list</span>.<span class="function">append</span>({
+    <span class="string">'geometry'</span>: roof_polygon,
+    <span class="string">'type'</span>: <span class="string">'roof'</span>,
+    <span class="string">'area_m2'</span>: row_m.geometry.area,
+    <span class="string">'azimuth'</span>: <span class="number">180.0</span>  <span class="comment"># 수평면</span>
+})</pre>
+                    </div>
+                    
+                    <p><strong>결과:</strong> 건물 상단의 수평 폴리곤이 생성됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Wall Generation -->
+        <div class="section">
+            <h2>Step 3: 벽면(Wall) 면 생성</h2>
+            <div class="step-container">
+                <div class="visualization">
+                    <canvas id="canvas3" width="600" height="500"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffd43b;"></div>
+                            <span>남향 벽면</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff8787;"></div>
+                            <span>북향 벽면</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #74c0fc;"></div>
+                            <span>동/서향 벽면</span>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <button onclick="rotateView3()">회전</button>
+                        <button onclick="showAzimuth()">방위각 표시</button>
+                    </div>
+                </div>
+                <div class="explanation">
+                    <h3>각 선분을 수직 벽면으로 변환</h3>
+                    <p>2D 폴리곤의 각 선분(edge)을 base_z ~ roof_z 범위로 "세웁니다".</p>
+                    
+                    <div class="code-block">
+                        <pre><span class="comment"># 각 선분(edge)에 대해</span>
+<span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="function">len</span>(coords_wgs) - <span class="number">1</span>):
+    p1, p2 = coords_wgs[i], coords_wgs[i+<span class="number">1</span>]
+    
+    <span class="comment"># 벽면 사각형 폴리곤</span>
+    <span class="keyword">wall_polygon</span> = <span class="function">Polygon</span>([
+        (p1[<span class="number">0</span>], p1[<span class="number">1</span>], <span class="keyword">base_z</span>),  <span class="comment"># 하단 좌</span>
+        (p2[<span class="number">0</span>], p2[<span class="number">1</span>], <span class="keyword">base_z</span>),  <span class="comment"># 하단 우</span>
+        (p2[<span class="number">0</span>], p2[<span class="number">1</span>], <span class="keyword">roof_z</span>),  <span class="comment"># 상단 우</span>
+        (p1[<span class="number">0</span>], p1[<span class="number">1</span>], <span class="keyword">roof_z</span>)   <span class="comment"># 상단 좌</span>
+    ])</pre>
+                    </div>
+                    
+                    <p><strong>구조:</strong> 각 벽면은 4개의 꼭짓점을 가진 사각형 폴리곤입니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Azimuth Calculation -->
+        <div class="section">
+            <h2>Step 4: 방위각(Azimuth) 계산</h2>
+            <div class="step-container">
+                <div class="visualization">
+                    <canvas id="canvas4" width="600" height="500"></canvas>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4dabf7;"></div>
+                            <span>선분 벡터</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6b6b;"></div>
+                            <span>법선 벡터</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="explanation">
+                    <h3>벽면 방향 계산</h3>
+                    <p>선분에 수직인 법선 벡터를 계산하여 벽면이 향하는 방향을 구합니다.</p>
+                    
+                    <div class="formula">
+                        선분 벡터 (dx, dy) → 법선 벡터 (-dy, dx)<br>
+                        방위각 = (90° - arctan2(ny, nx)) mod 360°
+                    </div>
+                    
+                    <div class="code-block">
+                        <pre><span class="comment"># 1. 선분 벡터 계산</span>
+dx = p2_m[<span class="number">0</span>] - p1_m[<span class="number">0</span>]
+dy = p2_m[<span class="number">1</span>] - p1_m[<span class="number">1</span>]
+
+<span class="comment"># 2. 법선 벡터 (90도 회전, 바깥쪽)</span>
+nx, ny = -dy, dx
+
+<span class="comment"># 3. 방위각 변환 (0°=북, 90°=동, 180°=남, 270°=서)</span>
+azimuth = (<span class="number">90</span> - np.<span class="function">degrees</span>(np.<span class="function">arctan2</span>(ny, nx))) % <span class="number">360</span>
+
+<span class="comment"># 4. 벽면 면적</span>
+wall_len = np.<span class="function">sqrt</span>(dx**<span class="number">2</span> + dy**<span class="number">2</span>)
+wall_area = wall_len * height</pre>
+                    </div>
+                    
+                    <p><strong>방위각 의미:</strong></p>
+                    <ul style="line-height: 2; color: #b8c5d6; margin-left: 20px;">
+                        <li>0° / 360° = 북쪽 (North)</li>
+                        <li>90° = 동쪽 (East)</li>
+                        <li>180° = 남쪽 (South) ← 일사량 최대</li>
+                        <li>270° = 서쪽 (West)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Final Result -->
+        <div class="section">
+            <h2>Step 5: 최종 결과 (Complete 3D Building)</h2>
+            <div class="step-container">
+                <div class="visualization">
+                    <canvas id="canvas5" width="600" height="500"></canvas>
+                    <div class="controls">
+                        <button onclick="autoRotate()">자동 회전</button>
+                        <button onclick="toggleWireframe()">와이어프레임</button>
+                    </div>
+                </div>
+                <div class="explanation">
+                    <h3>완성된 3D 건물 모델</h3>
+                    <p>옥상 1개 + 벽면 N개 = 총 (N+1)개의 3D 폴리곤 면으로 구성됩니다.</p>
+                    
+                    <div class="code-block">
+                        <pre><span class="comment"># 최종 출력 구조</span>
+face_list = [
+    {
+        <span class="string">'geometry'</span>: <span class="function">Polygon</span>([...]),  <span class="comment"># 3D 좌표</span>
+        <span class="string">'type'</span>: <span class="string">'roof'</span> or <span class="string">'wall'</span>,
+        <span class="string">'bld_id'</span>: <span class="number">0</span>,
+        <span class="string">'area_m2'</span>: <span class="number">50.0</span>,
+        <span class="string">'azimuth'</span>: <span class="number">180.0</span>,  <span class="comment"># 방위각 (도)</span>
+        <span class="string">'annual_rad_intensity'</span>: <span class="number">1500</span>,  <span class="comment"># Wh/m²</span>
+        <span class="string">'annual_pv_yield_kWh'</span>: <span class="number">75.0</span>   <span class="comment"># kWh</span>
+    },
+    <span class="comment"># ... more faces</span>
+]
+
+<span class="comment"># GeoJSON 형태로 저장</span>
+gdf_faces = gpd.<span class="function">GeoDataFrame</span>(face_list, crs=<span class="string">'EPSG:4326'</span>)
+gdf_faces.<span class="function">to_file</span>(<span class="string">'3D_pv_yield.geojson'</span>, driver=<span class="string">'GeoJSON'</span>)</pre>
+                    </div>
+                    
+                    <p><strong>활용:</strong> 각 면의 방위각과 일사량 정보를 활용하여 태양광 발전량을 정밀 예측할 수 있습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas contexts
+        const ctx1 = document.getElementById('canvas1').getContext('2d');
+        const ctx2 = document.getElementById('canvas2').getContext('2d');
+        const ctx3 = document.getElementById('canvas3').getContext('2d');
+        const ctx4 = document.getElementById('canvas4').getContext('2d');
+        const ctx5 = document.getElementById('canvas5').getContext('2d');
+
+        let rotation2 = 0;
+        let rotation3 = 0;
+        let rotation5 = 0;
+        let autoRotating = false;
+        let showWireframe = false;
+        let showAzimuthVectors = false;
+
+        // 3D Projection helpers
+        function project3D(x, y, z, rotation) {
+            const scale = 30;
+            const offsetX = 300;
+            const offsetY = 250;
+            
+            // Rotate around Y axis
+            const cosR = Math.cos(rotation);
+            const sinR = Math.sin(rotation);
+            const xRot = x * cosR - z * sinR;
+            const zRot = x * sinR + z * cosR;
+            
+            // Isometric projection
+            const screenX = offsetX + (xRot - y) * scale;
+            const screenY = offsetY + (xRot + y) * scale * 0.5 - zRot * scale * 0.8;
+            
+            return { x: screenX, y: screenY, depth: zRot };
+        }
+
+        // Draw Step 1: 2D Footprint
+        function drawStep1() {
+            ctx1.clearRect(0, 0, 600, 500);
+            
+            const points = [
+                { x: 250, y: 150 },
+                { x: 400, y: 180 },
+                { x: 380, y: 320 },
+                { x: 230, y: 300 }
+            ];
+            
+            // Draw polygon
+            ctx1.fillStyle = 'rgba(79, 172, 254, 0.3)';
+            ctx1.strokeStyle = '#4facfe';
+            ctx1.lineWidth = 3;
+            ctx1.beginPath();
+            ctx1.moveTo(points[0].x, points[0].y);
+            points.forEach(p => ctx1.lineTo(p.x, p.y));
+            ctx1.closePath();
+            ctx1.fill();
+            ctx1.stroke();
+            
+            // Draw points
+            points.forEach((p, i) => {
+                ctx1.fillStyle = '#ff6b6b';
+                ctx1.beginPath();
+                ctx1.arc(p.x, p.y, 8, 0, Math.PI * 2);
+                ctx1.fill();
+                
+                ctx1.fillStyle = '#ffffff';
+                ctx1.font = 'bold 14px JetBrains Mono';
+                ctx1.fillText(`P${i+1}`, p.x + 15, p.y + 5);
+            });
+            
+            // Labels
+            ctx1.fillStyle = '#4facfe';
+            ctx1.font = 'bold 18px Noto Sans KR';
+            ctx1.fillText('2D Building Footprint', 180, 50);
+            
+            ctx1.fillStyle = '#8892a6';
+            ctx1.font = '14px Noto Sans KR';
+            ctx1.fillText('평면도 (위에서 본 모습)', 200, 420);
+        }
+
+        // Draw Step 2: Roof
+        function drawStep2() {
+            ctx2.clearRect(0, 0, 600, 500);
+            
+            const points3D = [
+                { x: -3, y: -2, z: 5 },
+                { x: 3, y: -1, z: 5 },
+                { x: 2, y: 3, z: 5 },
+                { x: -3, y: 2, z: 5 }
+            ];
+            
+            const projected = points3D.map(p => project3D(p.x, p.y, p.z, rotation2));
+            
+            // Draw roof
+            ctx2.fillStyle = 'rgba(81, 207, 102, 0.6)';
+            ctx2.strokeStyle = '#51cf66';
+            ctx2.lineWidth = 3;
+            ctx2.beginPath();
+            ctx2.moveTo(projected[0].x, projected[0].y);
+            projected.forEach(p => ctx2.lineTo(p.x, p.y));
+            ctx2.closePath();
+            ctx2.fill();
+            ctx2.stroke();
+            
+            // Draw base reference
+            const basePoints = points3D.map(p => project3D(p.x, p.y, 0, rotation2));
+            ctx2.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx2.lineWidth = 1;
+            ctx2.setLineDash([5, 5]);
+            ctx2.beginPath();
+            ctx2.moveTo(basePoints[0].x, basePoints[0].y);
+            basePoints.forEach(p => ctx2.lineTo(p.x, p.y));
+            ctx2.closePath();
+            ctx2.stroke();
+            ctx2.setLineDash([]);
+            
+            // Draw height lines
+            for (let i = 0; i < 4; i++) {
+                ctx2.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx2.beginPath();
+                ctx2.moveTo(basePoints[i].x, basePoints[i].y);
+                ctx2.lineTo(projected[i].x, projected[i].y);
+                ctx2.stroke();
+            }
+            
+            // Labels
+            ctx2.fillStyle = '#51cf66';
+            ctx2.font = 'bold 16px Noto Sans KR';
+            ctx2.fillText('roof_z = 15m', 30, 50);
+            
+            ctx2.fillStyle = '#8892a6';
+            ctx2.font = '14px Noto Sans KR';
+            ctx2.fillText('base_z = 0m', 30, 420);
+        }
+
+        // Draw Step 3: Walls
+        function drawStep3() {
+            ctx3.clearRect(0, 0, 600, 500);
+            
+            const points3D = [
+                { x: -3, y: -2, z: 0 },
+                { x: 3, y: -1, z: 0 },
+                { x: 2, y: 3, z: 0 },
+                { x: -3, y: 2, z: 0 }
+            ];
+            
+            const height = 5;
+            
+            // Define wall colors based on azimuth
+            const wallColors = [
+                'rgba(255, 212, 59, 0.6)',  // South-facing (bright)
+                'rgba(116, 192, 252, 0.6)',  // East-facing
+                'rgba(255, 135, 135, 0.6)',  // North-facing (dark)
+                'rgba(116, 192, 252, 0.6)'   // West-facing
+            ];
+            
+            // Draw walls
+            for (let i = 0; i < 4; i++) {
+                const p1 = points3D[i];
+                const p2 = points3D[(i + 1) % 4];
+                
+                const corners = [
+                    project3D(p1.x, p1.y, 0, rotation3),
+                    project3D(p2.x, p2.y, 0, rotation3),
+                    project3D(p2.x, p2.y, height, rotation3),
+                    project3D(p1.x, p1.y, height, rotation3)
+                ];
+                
+                // Sort by depth for proper rendering
+                const avgDepth = corners.reduce((sum, c) => sum + c.depth, 0) / 4;
+                
+                ctx3.fillStyle = wallColors[i];
+                ctx3.strokeStyle = wallColors[i].replace('0.6', '1.0');
+                ctx3.lineWidth = 2;
+                ctx3.beginPath();
+                ctx3.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(c => ctx3.lineTo(c.x, c.y));
+                ctx3.closePath();
+                ctx3.fill();
+                ctx3.stroke();
+                
+                // Show azimuth vectors if enabled
+                if (showAzimuthVectors) {
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    const midZ = height / 2;
+                    
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const nx = -dy;
+                    const ny = dx;
+                    const len = Math.sqrt(nx * nx + ny * ny);
+                    
+                    const arrowStart = project3D(midX, midY, midZ, rotation3);
+                    const arrowEnd = project3D(midX + nx/len * 1.5, midY + ny/len * 1.5, midZ, rotation3);
+                    
+                    ctx3.strokeStyle = '#ff6b6b';
+                    ctx3.lineWidth = 3;
+                    ctx3.beginPath();
+                    ctx3.moveTo(arrowStart.x, arrowStart.y);
+                    ctx3.lineTo(arrowEnd.x, arrowEnd.y);
+                    ctx3.stroke();
+                    
+                    // Arrow head
+                    const angle = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
+                    ctx3.beginPath();
+                    ctx3.moveTo(arrowEnd.x, arrowEnd.y);
+                    ctx3.lineTo(arrowEnd.x - 10 * Math.cos(angle - Math.PI/6), 
+                               arrowEnd.y - 10 * Math.sin(angle - Math.PI/6));
+                    ctx3.lineTo(arrowEnd.x - 10 * Math.cos(angle + Math.PI/6), 
+                               arrowEnd.y - 10 * Math.sin(angle + Math.PI/6));
+                    ctx3.closePath();
+                    ctx3.fill();
+                }
+            }
+            
+            // Draw roof
+            const roofPoints = points3D.map(p => project3D(p.x, p.y, height, rotation3));
+            ctx3.fillStyle = 'rgba(81, 207, 102, 0.3)';
+            ctx3.strokeStyle = '#51cf66';
+            ctx3.lineWidth = 2;
+            ctx3.beginPath();
+            ctx3.moveTo(roofPoints[0].x, roofPoints[0].y);
+            roofPoints.forEach(p => ctx3.lineTo(p.x, p.y));
+            ctx3.closePath();
+            ctx3.fill();
+            ctx3.stroke();
+            
+            // Labels
+            ctx3.fillStyle = '#ffffff';
+            ctx3.font = 'bold 16px Noto Sans KR';
+            ctx3.fillText('4개의 벽면 + 1개의 옥상', 180, 50);
+        }
+
+        // Draw Step 4: Azimuth
+        function drawStep4() {
+            ctx4.clearRect(0, 0, 600, 500);
+            
+            // Draw compass
+            ctx4.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx4.lineWidth = 2;
+            ctx4.beginPath();
+            ctx4.arc(300, 250, 150, 0, Math.PI * 2);
+            ctx4.stroke();
+            
+            // Draw cardinal directions
+            const directions = [
+                { angle: -Math.PI/2, label: 'N (0°)', color: '#ff6b6b' },
+                { angle: 0, label: 'E (90°)', color: '#4dabf7' },
+                { angle: Math.PI/2, label: 'S (180°)', color: '#ffd43b' },
+                { angle: Math.PI, label: 'W (270°)', color: '#51cf66' }
+            ];
+            
+            directions.forEach(dir => {
+                const x = 300 + Math.cos(dir.angle) * 180;
+                const y = 250 + Math.sin(dir.angle) * 180;
+                
+                ctx4.strokeStyle = dir.color;
+                ctx4.lineWidth = 3;
+                ctx4.beginPath();
+                ctx4.moveTo(300, 250);
+                ctx4.lineTo(x, y);
+                ctx4.stroke();
+                
+                ctx4.fillStyle = dir.color;
+                ctx4.font = 'bold 16px JetBrains Mono';
+                ctx4.textAlign = 'center';
+                ctx4.fillText(dir.label, x, y + (dir.angle === -Math.PI/2 ? -10 : 25));
+            });
+            
+            // Draw example wall vector
+            const wallAngle = Math.PI / 6; // 30 degrees
+            const wallX = 300 + Math.cos(wallAngle) * 100;
+            const wallY = 250 + Math.sin(wallAngle) * 100;
+            
+            ctx4.strokeStyle = '#4dabf7';
+            ctx4.lineWidth = 4;
+            ctx4.setLineDash([10, 5]);
+            ctx4.beginPath();
+            ctx4.moveTo(300, 250);
+            ctx4.lineTo(wallX, wallY);
+            ctx4.stroke();
+            ctx4.setLineDash([]);
+            
+            // Normal vector (perpendicular)
+            const normalAngle = wallAngle - Math.PI/2;
+            const normalX = 300 + Math.cos(normalAngle) * 120;
+            const normalY = 250 + Math.sin(normalAngle) * 120;
+            
+            ctx4.strokeStyle = '#ff6b6b';
+            ctx4.lineWidth = 4;
+            ctx4.beginPath();
+            ctx4.moveTo(300, 250);
+            ctx4.lineTo(normalX, normalY);
+            ctx4.stroke();
+            
+            // Arrow head for normal
+            const angle = normalAngle;
+            ctx4.fillStyle = '#ff6b6b';
+            ctx4.beginPath();
+            ctx4.moveTo(normalX, normalY);
+            ctx4.lineTo(normalX - 15 * Math.cos(angle - Math.PI/6), 
+                       normalY - 15 * Math.sin(angle - Math.PI/6));
+            ctx4.lineTo(normalX - 15 * Math.cos(angle + Math.PI/6), 
+                       normalY - 15 * Math.sin(angle + Math.PI/6));
+            ctx4.closePath();
+            ctx4.fill();
+            
+            // Labels
+            ctx4.fillStyle = '#4dabf7';
+            ctx4.font = '14px Noto Sans KR';
+            ctx4.textAlign = 'left';
+            ctx4.fillText('선분 벡터 (dx, dy)', wallX + 10, wallY - 10);
+            
+            ctx4.fillStyle = '#ff6b6b';
+            ctx4.fillText('법선 벡터 (-dy, dx)', normalX + 10, normalY - 10);
+            ctx4.fillText('→ 벽면 방위각', normalX + 10, normalY + 10);
+        }
+
+        // Draw Step 5: Complete building
+        function drawStep5() {
+            ctx5.clearRect(0, 0, 600, 500);
+            
+            const points3D = [
+                { x: -3, y: -2, z: 0 },
+                { x: 3, y: -1, z: 0 },
+                { x: 2, y: 3, z: 0 },
+                { x: -3, y: 2, z: 0 }
+            ];
+            
+            const height = 5;
+            
+            // Wall colors based on solar exposure
+            const wallColors = [
+                { fill: 'rgba(255, 212, 59, 0.7)', stroke: '#ffd43b', label: '180°' },
+                { fill: 'rgba(116, 192, 252, 0.7)', stroke: '#74c0fc', label: '90°' },
+                { fill: 'rgba(255, 135, 135, 0.7)', stroke: '#ff8787', label: '0°' },
+                { fill: 'rgba(116, 192, 252, 0.7)', stroke: '#74c0fc', label: '270°' }
+            ];
+            
+            // Calculate all faces with depths
+            const faces = [];
+            
+            // Walls
+            for (let i = 0; i < 4; i++) {
+                const p1 = points3D[i];
+                const p2 = points3D[(i + 1) % 4];
+                
+                const corners = [
+                    project3D(p1.x, p1.y, 0, rotation5),
+                    project3D(p2.x, p2.y, 0, rotation5),
+                    project3D(p2.x, p2.y, height, rotation5),
+                    project3D(p1.x, p1.y, height, rotation5)
+                ];
+                
+                const avgDepth = corners.reduce((sum, c) => sum + c.depth, 0) / 4;
+                
+                faces.push({
+                    type: 'wall',
+                    corners,
+                    depth: avgDepth,
+                    color: wallColors[i]
+                });
+            }
+            
+            // Roof
+            const roofCorners = points3D.map(p => project3D(p.x, p.y, height, rotation5));
+            const roofDepth = roofCorners.reduce((sum, c) => sum + c.depth, 0) / 4;
+            
+            faces.push({
+                type: 'roof',
+                corners: roofCorners,
+                depth: roofDepth,
+                color: { fill: 'rgba(81, 207, 102, 0.7)', stroke: '#51cf66', label: 'Roof' }
+            });
+            
+            // Sort faces by depth (painter's algorithm)
+            faces.sort((a, b) => a.depth - b.depth);
+            
+            // Draw faces
+            faces.forEach(face => {
+                ctx5.fillStyle = face.color.fill;
+                ctx5.strokeStyle = face.color.stroke;
+                ctx5.lineWidth = showWireframe ? 1 : 3;
+                
+                ctx5.beginPath();
+                ctx5.moveTo(face.corners[0].x, face.corners[0].y);
+                face.corners.forEach(c => ctx5.lineTo(c.x, c.y));
+                ctx5.closePath();
+                
+                if (!showWireframe) {
+                    ctx5.fill();
+                }
+                ctx5.stroke();
+            });
+            
+            // Labels
+            ctx5.fillStyle = '#ffffff';
+            ctx5.font = 'bold 18px Noto Sans KR';
+            ctx5.fillText('완성된 3D 건물 모델', 180, 50);
+            
+            ctx5.fillStyle = '#8892a6';
+            ctx5.font = '14px Noto Sans KR';
+            ctx5.fillText('총 5개 Face: 옥상 1 + 벽면 4', 180, 450);
+        }
+
+        // Animation functions
+        function rotateView2() {
+            rotation2 += 0.1;
+            drawStep2();
+        }
+
+        function rotateView3() {
+            rotation3 += 0.1;
+            drawStep3();
+        }
+
+        function showAzimuth() {
+            showAzimuthVectors = !showAzimuthVectors;
+            drawStep3();
+        }
+
+        function autoRotate() {
+            autoRotating = !autoRotating;
+            if (autoRotating) {
+                function animate() {
+                    if (autoRotating) {
+                        rotation5 += 0.02;
+                        drawStep5();
+                        requestAnimationFrame(animate);
+                    }
+                }
+                animate();
+            }
+        }
+
+        function toggleWireframe() {
+            showWireframe = !showWireframe;
+            drawStep5();
+        }
+
+        // Initial draw
+        drawStep1();
+        drawStep2();
+        drawStep3();
+        drawStep4();
+        drawStep5();
+
+        // Auto-rotate step 2 and 3 slowly
+        setInterval(() => {
+            rotation2 += 0.005;
+            rotation3 += 0.005;
+            drawStep2();
+            drawStep3();
+        }, 50);
+    </script>
+</body>
+</html>
